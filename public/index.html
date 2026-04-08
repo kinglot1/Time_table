@@ -1,0 +1,980 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TimeForge — Timetable Scheduler</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0f0f0f;
+    --bg2: #161616;
+    --bg3: #1e1e1e;
+    --bg4: #252525;
+    --border: #2e2e2e;
+    --border2: #3a3a3a;
+    --text: #e8e8e8;
+    --text2: #9a9a9a;
+    --text3: #5a5a5a;
+    --accent: #f0c040;
+    --accent2: #c89f28;
+    --blue: #4a9eff;
+    --green: #3ecf6e;
+    --red: #ff5a5a;
+    --purple: #a78bfa;
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: var(--bg); color: var(--text); font-family: var(--sans); font-size: 14px; min-height: 100vh; }
+
+  /* Layout */
+  .shell { display: flex; min-height: 100vh; }
+  .sidebar { width: 220px; background: var(--bg2); border-right: 1px solid var(--border); display: flex; flex-direction: column; flex-shrink: 0; position: fixed; height: 100vh; z-index: 10; }
+  .main { margin-left: 220px; flex: 1; padding: 0; }
+
+  /* Sidebar */
+  .logo { padding: 24px 20px 20px; border-bottom: 1px solid var(--border); }
+  .logo-mark { font-family: var(--mono); font-size: 18px; font-weight: 600; color: var(--accent); letter-spacing: -0.5px; }
+  .logo-sub { font-size: 10px; color: var(--text3); letter-spacing: 2px; text-transform: uppercase; margin-top: 2px; }
+
+  .nav { padding: 16px 0; flex: 1; }
+  .nav-section { padding: 8px 20px 4px; font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--text3); font-family: var(--mono); }
+  .nav-item { display: flex; align-items: center; gap: 10px; padding: 9px 20px; cursor: pointer; color: var(--text2); transition: all 0.15s; font-size: 13px; border-left: 2px solid transparent; }
+  .nav-item:hover { color: var(--text); background: var(--bg3); }
+  .nav-item.active { color: var(--accent); border-left-color: var(--accent); background: rgba(240,192,64,0.06); }
+  .nav-icon { font-size: 15px; width: 18px; text-align: center; }
+
+  .sidebar-footer { padding: 16px 20px; border-top: 1px solid var(--border); font-size: 11px; color: var(--text3); font-family: var(--mono); }
+
+  /* Top bar */
+  .topbar { background: var(--bg2); border-bottom: 1px solid var(--border); padding: 0 32px; height: 56px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 5; }
+  .page-title { font-size: 15px; font-weight: 500; color: var(--text); }
+  .page-breadcrumb { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 1px; }
+  .topbar-actions { display: flex; gap: 8px; align-items: center; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 4px; font-size: 12px; font-weight: 500; cursor: pointer; transition: all 0.15s; border: 1px solid transparent; font-family: var(--sans); white-space: nowrap; }
+  .btn-primary { background: var(--accent); color: #000; border-color: var(--accent); }
+  .btn-primary:hover { background: #ffd050; }
+  .btn-ghost { background: transparent; color: var(--text2); border-color: var(--border2); }
+  .btn-ghost:hover { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+  .btn-danger { background: transparent; color: var(--red); border-color: rgba(255,90,90,0.3); }
+  .btn-danger:hover { background: rgba(255,90,90,0.1); }
+  .btn-success { background: var(--green); color: #000; }
+  .btn-success:hover { background: #4edf7e; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* Content area */
+  .content { padding: 28px 32px; }
+
+  /* Stats row */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; margin-bottom: 28px; }
+  .stat-card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; padding: 16px; }
+  .stat-val { font-size: 28px; font-weight: 600; font-family: var(--mono); color: var(--text); line-height: 1; }
+  .stat-label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; margin-top: 6px; }
+  .stat-card.accent .stat-val { color: var(--accent); }
+
+  /* Cards */
+  .card { background: var(--bg2); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; margin-bottom: 20px; }
+  .card-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .card-title { font-size: 13px; font-weight: 500; color: var(--text); }
+  .card-body { padding: 20px; }
+
+  /* Tables */
+  table { width: 100%; border-collapse: collapse; }
+  th { font-size: 10px; text-transform: uppercase; letter-spacing: 1.5px; color: var(--text3); font-family: var(--mono); padding: 10px 16px; text-align: left; border-bottom: 1px solid var(--border); background: var(--bg3); }
+  td { padding: 11px 16px; border-bottom: 1px solid var(--border); color: var(--text2); font-size: 13px; vertical-align: middle; }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--bg3); color: var(--text); }
+
+  /* Badges */
+  .badge { display: inline-flex; align-items: center; padding: 2px 8px; border-radius: 3px; font-size: 10px; font-weight: 500; font-family: var(--mono); letter-spacing: 0.5px; }
+  .badge-yellow { background: rgba(240,192,64,0.15); color: var(--accent); }
+  .badge-green { background: rgba(62,207,110,0.15); color: var(--green); }
+  .badge-blue { background: rgba(74,158,255,0.15); color: var(--blue); }
+  .badge-red { background: rgba(255,90,90,0.15); color: var(--red); }
+  .badge-purple { background: rgba(167,139,250,0.15); color: var(--purple); }
+
+  /* Forms */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .form-group { display: flex; flex-direction: column; gap: 6px; }
+  .form-group.full { grid-column: 1 / -1; }
+  label { font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 1px; font-family: var(--mono); }
+  input, select, textarea { background: var(--bg3); border: 1px solid var(--border2); border-radius: 4px; padding: 8px 10px; color: var(--text); font-family: var(--sans); font-size: 13px; outline: none; transition: border 0.15s; width: 100%; }
+  input:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--bg3); }
+
+  /* Timetable grid */
+  .tt-wrap { overflow-x: auto; }
+  .tt-grid { display: grid; grid-template-columns: 110px repeat(5, 1fr); border: 1px solid var(--border); border-radius: 6px; overflow: hidden; min-width: 700px; }
+  .tt-header { background: var(--bg3); padding: 10px 12px; font-size: 10px; font-family: var(--mono); color: var(--text3); text-transform: uppercase; letter-spacing: 1.5px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); text-align: center; }
+  .tt-header:last-child { border-right: none; }
+  .tt-time { background: var(--bg3); padding: 8px 12px; font-size: 11px; font-family: var(--mono); color: var(--text3); border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); display: flex; align-items: center; justify-content: center; text-align: center; min-height: 72px; }
+  .tt-cell { padding: 6px; border-bottom: 1px solid var(--border); border-right: 1px solid var(--border); min-height: 72px; position: relative; }
+  .tt-cell:last-child { border-right: none; }
+  .tt-entry { background: var(--bg4); border: 1px solid var(--border2); border-radius: 4px; padding: 6px 8px; height: 100%; cursor: pointer; transition: all 0.15s; position: relative; }
+  .tt-entry:hover { border-color: var(--accent); }
+  .tt-entry.ds { border-left: 3px solid var(--blue); }
+  .tt-entry.os { border-left: 3px solid var(--green); }
+  .tt-entry.db { border-left: 3px solid var(--purple); }
+  .tt-entry.cn { border-left: 3px solid var(--accent); }
+  .tt-entry.se { border-left: 3px solid var(--red); }
+  .tt-entry.ml { border-left: 3px solid #f97316; }
+  .tt-entry.wt { border-left: 3px solid #ec4899; }
+  .entry-subj { font-size: 11px; font-weight: 500; color: var(--text); line-height: 1.3; }
+  .entry-faculty { font-size: 10px; color: var(--text3); font-family: var(--mono); margin-top: 2px; }
+  .entry-room { font-size: 10px; color: var(--text3); margin-top: 1px; }
+  .entry-del { position: absolute; top: 4px; right: 4px; width: 16px; height: 16px; background: rgba(255,90,90,0.2); border-radius: 2px; color: var(--red); font-size: 10px; display: none; align-items: center; justify-content: center; cursor: pointer; }
+  .tt-entry:hover .entry-del { display: flex; }
+
+  /* Generate panel */
+  .gen-panel { background: var(--bg2); border: 1px solid var(--border); border-radius: 8px; padding: 28px; max-width: 540px; }
+  .gen-title { font-size: 20px; font-weight: 500; color: var(--text); margin-bottom: 6px; }
+  .gen-sub { font-size: 13px; color: var(--text2); margin-bottom: 24px; line-height: 1.5; }
+
+  /* Toast */
+  #toast { position: fixed; bottom: 24px; right: 24px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 6px; padding: 12px 18px; font-size: 13px; color: var(--text); display: none; z-index: 999; font-family: var(--mono); }
+  #toast.show { display: block; animation: fadeIn 0.2s; }
+  #toast.success { border-left: 3px solid var(--green); }
+  #toast.error { border-left: 3px solid var(--red); }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* Modal */
+  .modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.7); z-index: 100; display: none; align-items: center; justify-content: center; }
+  .modal-overlay.open { display: flex; }
+  .modal { background: var(--bg2); border: 1px solid var(--border2); border-radius: 8px; padding: 28px; width: 480px; max-width: 95vw; }
+  .modal-title { font-size: 16px; font-weight: 500; margin-bottom: 20px; }
+  .modal-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
+
+  /* Loader */
+  .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(240,192,64,0.3); border-top-color: var(--accent); border-radius: 50%; animation: spin 0.7s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Page sections */
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* Empty state */
+  .empty { text-align: center; padding: 60px 20px; color: var(--text3); }
+  .empty-icon { font-size: 40px; margin-bottom: 12px; }
+  .empty-text { font-size: 14px; }
+
+  /* Status dot */
+  .dot { display: inline-block; width: 7px; height: 7px; border-radius: 50%; margin-right: 6px; }
+  .dot-yellow { background: var(--accent); }
+  .dot-green { background: var(--green); }
+
+  /* Day tabs */
+  .batch-tabs { display: flex; gap: 0; margin-bottom: 20px; border: 1px solid var(--border); border-radius: 6px; overflow: hidden; }
+  .batch-tab { padding: 9px 16px; font-size: 12px; cursor: pointer; color: var(--text2); background: var(--bg2); border-right: 1px solid var(--border); transition: all 0.15s; font-family: var(--mono); }
+  .batch-tab:last-child { border-right: none; }
+  .batch-tab:hover { background: var(--bg3); color: var(--text); }
+  .batch-tab.active { background: var(--accent); color: #000; font-weight: 600; }
+
+  /* Constraint hints */
+  .hint { font-size: 11px; color: var(--text3); font-family: var(--mono); margin-top: 4px; }
+  .conflict { background: rgba(255,90,90,0.08); border: 1px solid rgba(255,90,90,0.2); border-radius: 4px; padding: 10px 14px; font-size: 12px; color: var(--red); display: flex; gap: 8px; align-items: flex-start; margin-bottom: 12px; }
+</style>
+</head>
+<body>
+
+<div class="shell">
+  <!-- Sidebar -->
+  <aside class="sidebar">
+    <div class="logo">
+      <div class="logo-mark">TimeForge</div>
+      <div class="logo-sub">Scheduler v1.0</div>
+    </div>
+    <nav class="nav">
+      <div class="nav-section">Overview</div>
+      <div class="nav-item active" onclick="navigate('dashboard')">
+        <span class="nav-icon">⬡</span> Dashboard
+      </div>
+      <div class="nav-section">Generate</div>
+      <div class="nav-item" onclick="navigate('generate')">
+        <span class="nav-icon">⚡</span> Generate
+      </div>
+      <div class="nav-item" onclick="navigate('view')">
+        <span class="nav-icon">📅</span> View Timetable
+      </div>
+      <div class="nav-section">Manage</div>
+      <div class="nav-item" onclick="navigate('departments')">
+        <span class="nav-icon">🏛</span> Departments
+      </div>
+      <div class="nav-item" onclick="navigate('batches')">
+        <span class="nav-icon">◉</span> Batches
+      </div>
+      <div class="nav-item" onclick="navigate('subjects')">
+        <span class="nav-icon">📚</span> Subjects
+      </div>
+      <div class="nav-item" onclick="navigate('faculty')">
+        <span class="nav-icon">👤</span> Faculty
+      </div>
+      <div class="nav-item" onclick="navigate('rooms')">
+        <span class="nav-icon">🚪</span> Rooms
+      </div>
+    </nav>
+    <div class="sidebar-footer">MITWPU · Academic Dept.</div>
+  </aside>
+
+  <!-- Main -->
+  <main class="main">
+    <div class="topbar">
+      <div>
+        <div class="page-title" id="page-title">Dashboard</div>
+        <div class="page-breadcrumb" id="page-breadcrumb">overview / stats</div>
+      </div>
+      <div class="topbar-actions" id="topbar-actions"></div>
+    </div>
+
+    <div class="content">
+
+      <!-- DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="stats-grid" id="stats-grid">
+          <div class="stat-card accent"><div class="stat-val" id="st-tt">–</div><div class="stat-label">Timetables</div></div>
+          <div class="stat-card"><div class="stat-val" id="st-dept">–</div><div class="stat-label">Departments</div></div>
+          <div class="stat-card"><div class="stat-val" id="st-batch">–</div><div class="stat-label">Batches</div></div>
+          <div class="stat-card"><div class="stat-val" id="st-subj">–</div><div class="stat-label">Subjects</div></div>
+          <div class="stat-card"><div class="stat-val" id="st-fac">–</div><div class="stat-label">Faculty</div></div>
+          <div class="stat-card"><div class="stat-val" id="st-rooms">–</div><div class="stat-label">Rooms</div></div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Generated Timetables</span></div>
+          <table>
+            <thead><tr><th>Batch</th><th>Status</th><th>Generated</th><th>Actions</th></tr></thead>
+            <tbody id="tt-list-table"><tr><td colspan="4"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No timetables yet — generate one first</div></div></td></tr></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- GENERATE -->
+      <div class="page" id="page-generate">
+        <div class="gen-panel">
+          <div class="gen-title">Generate Timetable</div>
+          <div class="gen-sub">Select a batch and the scheduler will automatically assign subjects, faculty, rooms and timeslots — respecting all constraints.</div>
+          <div class="form-grid" style="grid-template-columns:1fr;">
+            <div class="form-group">
+              <label>Department</label>
+              <select id="gen-dept" onchange="loadBatchesForGen()"><option value="">Select department…</option></select>
+            </div>
+            <div class="form-group">
+              <label>Batch</label>
+              <select id="gen-batch"><option value="">Select batch…</option></select>
+            </div>
+          </div>
+          <div id="gen-conflicts" style="margin-top:16px;"></div>
+          <div style="margin-top:20px;display:flex;gap:10px;align-items:center;">
+            <button class="btn btn-primary" id="gen-btn" onclick="doGenerate()">⚡ Generate Timetable</button>
+            <span id="gen-spinner" style="display:none"><div class="spinner"></div></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- VIEW TIMETABLE -->
+      <div class="page" id="page-view">
+        <div style="display:flex;gap:12px;align-items:flex-end;margin-bottom:20px;flex-wrap:wrap;">
+          <div class="form-group" style="min-width:180px;">
+            <label>Department</label>
+            <select id="view-dept" onchange="loadBatchesForView()"><option value="">Select…</option></select>
+          </div>
+          <div class="form-group" style="min-width:160px;">
+            <label>Batch</label>
+            <select id="view-batch" onchange="loadTimetable()"><option value="">Select…</option></select>
+          </div>
+          <div id="view-actions" style="display:flex;gap:8px;padding-bottom:1px;"></div>
+        </div>
+        <div id="tt-container"><div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Select a batch to view timetable</div></div></div>
+      </div>
+
+      <!-- DEPARTMENTS -->
+      <div class="page" id="page-departments">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Departments</span>
+            <button class="btn btn-primary btn-sm" onclick="openModal('dept-modal')">+ Add</button>
+          </div>
+          <table>
+            <thead><tr><th>ID</th><th>Name</th><th>Batches</th><th></th></tr></thead>
+            <tbody id="dept-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- BATCHES -->
+      <div class="page" id="page-batches">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Batches</span>
+            <button class="btn btn-primary btn-sm" onclick="openModal('batch-modal')">+ Add</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Year</th><th>Department</th><th>Subjects</th><th></th></tr></thead>
+            <tbody id="batch-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- SUBJECTS -->
+      <div class="page" id="page-subjects">
+        <div style="display:flex;gap:10px;align-items:flex-end;margin-bottom:16px;flex-wrap:wrap;">
+          <div class="form-group" style="min-width:180px;">
+            <label>Filter by Batch</label>
+            <select id="subj-filter-batch" onchange="loadSubjects()"><option value="">All batches</option></select>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Subjects</span>
+            <button class="btn btn-primary btn-sm" onclick="openModal('subj-modal')">+ Add</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Batch</th><th>Hrs/Week</th><th>Faculty</th><th></th></tr></thead>
+            <tbody id="subj-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- FACULTY -->
+      <div class="page" id="page-faculty">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Faculty</span>
+            <button class="btn btn-primary btn-sm" onclick="openModal('faculty-modal')">+ Add</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Availability</th><th>Subjects</th><th></th></tr></thead>
+            <tbody id="faculty-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ROOMS -->
+      <div class="page" id="page-rooms">
+        <div class="card">
+          <div class="card-header">
+            <span class="card-title">Rooms</span>
+            <button class="btn btn-primary btn-sm" onclick="openModal('room-modal')">+ Add</button>
+          </div>
+          <table>
+            <thead><tr><th>Name</th><th>Capacity</th><th></th></tr></thead>
+            <tbody id="room-table"></tbody>
+          </table>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </main>
+</div>
+
+<!-- MODALS -->
+<div class="modal-overlay" id="dept-modal">
+  <div class="modal">
+    <div class="modal-title">Add Department</div>
+    <div class="form-group"><label>Department Name</label><input id="dept-name" placeholder="e.g. Computer Science" /></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('dept-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addDept()">Add Department</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="batch-modal">
+  <div class="modal">
+    <div class="modal-title">Add Batch</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Batch Name</label><input id="batch-name" placeholder="e.g. CS-2025" /></div>
+      <div class="form-group"><label>Year</label><input id="batch-year" type="number" min="1" max="5" placeholder="2" /></div>
+      <div class="form-group"><label>Department</label><select id="batch-dept-sel"></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('batch-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addBatch()">Add Batch</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="subj-modal">
+  <div class="modal">
+    <div class="modal-title">Add Subject</div>
+    <div class="form-grid">
+      <div class="form-group full"><label>Subject Name</label><input id="subj-name" placeholder="e.g. Data Structures" /></div>
+      <div class="form-group"><label>Hours/Week</label><input id="subj-hrs" type="number" min="1" max="8" value="3" /></div>
+      <div class="form-group"><label>Batch</label><select id="subj-batch-sel"></select></div>
+      <div class="form-group full"><label>Assign Faculty</label><select id="subj-faculty-sel"></select></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('subj-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addSubject()">Add Subject</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="faculty-modal">
+  <div class="modal">
+    <div class="modal-title">Add Faculty</div>
+    <div class="form-group" style="margin-bottom:14px;"><label>Full Name</label><input id="fac-name" placeholder="e.g. Dr. Priya Sharma" /></div>
+    <div class="form-group">
+      <label>Availability (Days)</label>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px;" id="avail-checks">
+        <label style="display:flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;"><input type="checkbox" value="Mon" checked> Mon</label>
+        <label style="display:flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;"><input type="checkbox" value="Tue" checked> Tue</label>
+        <label style="display:flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;"><input type="checkbox" value="Wed" checked> Wed</label>
+        <label style="display:flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;"><input type="checkbox" value="Thu" checked> Thu</label>
+        <label style="display:flex;align-items:center;gap:4px;text-transform:none;letter-spacing:0;font-size:13px;cursor:pointer;"><input type="checkbox" value="Fri" checked> Fri</label>
+      </div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('faculty-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addFaculty()">Add Faculty</button>
+    </div>
+  </div>
+</div>
+
+<div class="modal-overlay" id="room-modal">
+  <div class="modal">
+    <div class="modal-title">Add Room</div>
+    <div class="form-grid">
+      <div class="form-group"><label>Room Name</label><input id="room-name" placeholder="e.g. Room 301" /></div>
+      <div class="form-group"><label>Capacity</label><input id="room-cap" type="number" value="60" /></div>
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal('room-modal')">Cancel</button>
+      <button class="btn btn-primary" onclick="addRoom()">Add Room</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+const API = '/api';
+const DAYS = ['Mon','Tue','Wed','Thu','Fri'];
+const COLORS = ['ds','os','db','cn','se','ml','wt'];
+let subjColorMap = {};
+let allData = { departments: [], batches: [], subjects: [], faculty: [], rooms: [] };
+
+// ─── Navigation ───────────────────────────────────────────────────────────────
+const pageMeta = {
+  dashboard: { title: 'Dashboard', bc: 'overview / stats' },
+  generate: { title: 'Generate Timetable', bc: 'timetable / generate' },
+  view: { title: 'View Timetable', bc: 'timetable / view' },
+  departments: { title: 'Departments', bc: 'manage / departments' },
+  batches: { title: 'Batches', bc: 'manage / batches' },
+  subjects: { title: 'Subjects', bc: 'manage / subjects' },
+  faculty: { title: 'Faculty', bc: 'manage / faculty' },
+  rooms: { title: 'Rooms', bc: 'manage / rooms' }
+};
+
+function navigate(page) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('page-' + page).classList.add('active');
+  document.querySelector(`[onclick="navigate('${page}')"]`).classList.add('active');
+  const m = pageMeta[page];
+  document.getElementById('page-title').textContent = m.title;
+  document.getElementById('page-breadcrumb').textContent = m.bc;
+  document.getElementById('topbar-actions').innerHTML = '';
+  if (page === 'dashboard') loadDashboard();
+  if (page === 'generate') setupGenerate();
+  if (page === 'view') setupView();
+  if (page === 'departments') loadDepts();
+  if (page === 'batches') loadBatches();
+  if (page === 'subjects') loadSubjectsPage();
+  if (page === 'faculty') loadFacultyPage();
+  if (page === 'rooms') loadRoomsPage();
+}
+
+// ─── API helpers ─────────────────────────────────────────────────────────────
+async function api(path, method = 'GET', body) {
+  const opts = { method, headers: { 'Content-Type': 'application/json' } };
+  if (body) opts.body = JSON.stringify(body);
+  const r = await fetch(API + path, opts);
+  return r.json();
+}
+
+function toast(msg, type = 'success') {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'show ' + type;
+  clearTimeout(el._t);
+  el._t = setTimeout(() => el.className = '', 3000);
+}
+
+// ─── Dashboard ────────────────────────────────────────────────────────────────
+async function loadDashboard() {
+  const stats = await api('/stats');
+  document.getElementById('st-tt').textContent = stats.timetables;
+  document.getElementById('st-dept').textContent = stats.departments;
+  document.getElementById('st-batch').textContent = stats.batches;
+  document.getElementById('st-subj').textContent = stats.subjects;
+  document.getElementById('st-fac').textContent = stats.faculty;
+  document.getElementById('st-rooms').textContent = stats.rooms;
+
+  const tts = await Promise.all(
+    (await api('/timetable/list') || []).map ? [] : []
+  );
+
+  // Load all timetables via batches
+  const batches = await api('/batches');
+  allData.batches = batches;
+  const depts = await api('/departments');
+  allData.departments = depts;
+
+  const rows = [];
+  for (const b of batches) {
+    const r = await api('/timetable/' + b.batch_id);
+    if (r && r.timetable) rows.push({ batch: b, tt: r.timetable });
+  }
+
+  const tbody = document.getElementById('tt-list-table');
+  if (!rows.length) {
+    tbody.innerHTML = `<tr><td colspan="4"><div class="empty"><div class="empty-icon">📋</div><div class="empty-text">No timetables yet — generate one first</div></div></td></tr>`;
+    return;
+  }
+  tbody.innerHTML = rows.map(({ batch, tt }) => `
+    <tr>
+      <td><b style="color:var(--text)">${batch.name}</b></td>
+      <td><span class="dot ${tt.status === 'published' ? 'dot-green' : 'dot-yellow'}"></span>
+          <span class="badge ${tt.status === 'published' ? 'badge-green' : 'badge-yellow'}">${tt.status}</span></td>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${new Date(tt.generated_at).toLocaleString()}</td>
+      <td style="display:flex;gap:6px;">
+        <button class="btn btn-ghost btn-sm" onclick="navigate('view')">View</button>
+        ${tt.status !== 'published' ? `<button class="btn btn-success btn-sm" onclick="publishTT('${tt.timetable_id}')">Publish</button>` : ''}
+      </td>
+    </tr>
+  `).join('');
+}
+
+async function publishTT(id) {
+  await api('/timetable/' + id + '/publish', 'POST');
+  toast('Timetable published!');
+  loadDashboard();
+}
+
+// ─── Generate ─────────────────────────────────────────────────────────────────
+async function setupGenerate() {
+  const depts = await api('/departments');
+  allData.departments = depts;
+  const sel = document.getElementById('gen-dept');
+  sel.innerHTML = '<option value="">Select department…</option>' + depts.map(d =>
+    `<option value="${d.department_id}">${d.name}</option>`).join('');
+  document.getElementById('gen-batch').innerHTML = '<option value="">Select batch…</option>';
+  document.getElementById('gen-conflicts').innerHTML = '';
+}
+
+async function loadBatchesForGen() {
+  const deptId = document.getElementById('gen-dept').value;
+  const batches = deptId ? await api('/batches?department_id=' + deptId) : [];
+  const sel = document.getElementById('gen-batch');
+  sel.innerHTML = '<option value="">Select batch…</option>' + batches.map(b =>
+    `<option value="${b.batch_id}">${b.name} (Year ${b.year})</option>`).join('');
+}
+
+async function doGenerate() {
+  const batchId = document.getElementById('gen-batch').value;
+  if (!batchId) { toast('Please select a batch', 'error'); return; }
+  document.getElementById('gen-btn').disabled = true;
+  document.getElementById('gen-spinner').style.display = 'inline-block';
+  document.getElementById('gen-conflicts').innerHTML = '';
+  try {
+    const res = await api('/timetable/generate', 'POST', { batch_id: batchId });
+    if (res.error) throw new Error(res.error);
+    const placed = res.entries.length;
+    const subjects = await api('/subjects?batch_id=' + batchId);
+    const needed = subjects.reduce((a, s) => a + s.hours_per_week, 0);
+    let conflictHtml = '';
+    if (placed < needed) {
+      conflictHtml = `<div class="conflict">⚠ ${needed - placed} slots could not be placed due to faculty/room conflicts. Placed ${placed}/${needed} sessions.</div>`;
+    }
+    document.getElementById('gen-conflicts').innerHTML = conflictHtml +
+      `<div class="conflict" style="border-color:rgba(62,207,110,0.3);color:var(--green);background:rgba(62,207,110,0.06)">✓ Generated ${placed} sessions for ${res.timetable.batch_name}</div>`;
+    toast('Timetable generated!');
+  } catch (e) {
+    toast(e.message, 'error');
+  }
+  document.getElementById('gen-btn').disabled = false;
+  document.getElementById('gen-spinner').style.display = 'none';
+}
+
+// ─── View Timetable ───────────────────────────────────────────────────────────
+async function setupView() {
+  const depts = await api('/departments');
+  allData.departments = depts;
+  const sel = document.getElementById('view-dept');
+  sel.innerHTML = '<option value="">Select…</option>' + depts.map(d =>
+    `<option value="${d.department_id}">${d.name}</option>`).join('');
+  document.getElementById('view-batch').innerHTML = '<option value="">Select…</option>';
+}
+
+async function loadBatchesForView() {
+  const deptId = document.getElementById('view-dept').value;
+  const batches = deptId ? await api('/batches?department_id=' + deptId) : [];
+  allData.batches = batches;
+  const sel = document.getElementById('view-batch');
+  sel.innerHTML = '<option value="">Select…</option>' + batches.map(b =>
+    `<option value="${b.batch_id}">${b.name}</option>`).join('');
+  document.getElementById('tt-container').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">Select a batch</div></div>';
+}
+
+async function loadTimetable() {
+  const batchId = document.getElementById('view-batch').value;
+  if (!batchId) return;
+  const res = await api('/timetable/' + batchId);
+  document.getElementById('view-actions').innerHTML = '';
+  if (!res || res.error) {
+    document.getElementById('tt-container').innerHTML = '<div class="empty"><div class="empty-icon">📅</div><div class="empty-text">No timetable generated for this batch yet</div></div>';
+    return;
+  }
+  const { timetable, entries } = res;
+
+  // Status badge + publish button
+  const actEl = document.getElementById('view-actions');
+  actEl.innerHTML = `<span class="badge ${timetable.status === 'published' ? 'badge-green' : 'badge-yellow'}">${timetable.status}</span>`;
+  if (timetable.status !== 'published') {
+    actEl.innerHTML += `<button class="btn btn-success btn-sm" onclick="publishAndRefresh('${timetable.timetable_id}')">Publish</button>`;
+  }
+  actEl.innerHTML += `<button class="btn btn-ghost btn-sm" onclick="exportCSV('${batchId}')">Export CSV</button>`;
+
+  // Assign colors to subjects
+  const subjectIds = [...new Set(entries.map(e => e.subject_id))];
+  subjectIds.forEach((id, i) => { subjColorMap[id] = COLORS[i % COLORS.length]; });
+
+  renderGrid(entries);
+}
+
+async function publishAndRefresh(id) {
+  await publishTT(id);
+  loadTimetable();
+}
+
+function renderGrid(entries) {
+  const slots = [
+    { slot_id: 'ts1', start_time: '09:00', end_time: '10:00' },
+    { slot_id: 'ts2', start_time: '10:00', end_time: '11:00' },
+    { slot_id: 'ts3', start_time: '11:15', end_time: '12:15' },
+    { slot_id: 'ts4', start_time: '12:15', end_time: '13:15' },
+    { slot_id: 'ts5', start_time: '14:00', end_time: '15:00' },
+    { slot_id: 'ts6', start_time: '15:00', end_time: '16:00' }
+  ];
+
+  // index entries
+  const byDaySlot = {};
+  entries.forEach(e => {
+    const key = e.day + '_' + e.slot_id;
+    byDaySlot[key] = e;
+  });
+
+  let html = '<div class="tt-wrap"><div class="tt-grid">';
+  // Headers
+  html += '<div class="tt-header">Time</div>';
+  DAYS.forEach(d => { html += `<div class="tt-header">${d}</div>`; });
+
+  // Rows
+  slots.forEach(slot => {
+    html += `<div class="tt-time">${slot.start_time}<br><span style="color:var(--text3);font-size:10px">${slot.end_time}</span></div>`;
+    DAYS.forEach(day => {
+      const key = day + '_' + slot.slot_id;
+      const entry = byDaySlot[key];
+      if (entry) {
+        const colorClass = subjColorMap[entry.subject_id] || 'ds';
+        html += `<div class="tt-cell">
+          <div class="tt-entry ${colorClass}">
+            <div class="entry-subj">${entry.subject_name}</div>
+            <div class="entry-faculty">${entry.faculty_name.replace('Dr. ','').replace('Prof. ','')}</div>
+            <div class="entry-room">📍 ${entry.room_name}</div>
+            <div class="entry-del" onclick="deleteEntry('${entry.entry_id}')">✕</div>
+          </div>
+        </div>`;
+      } else {
+        html += '<div class="tt-cell"></div>';
+      }
+    });
+  });
+
+  html += '</div></div>';
+
+  // Legend
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;">';
+  const seen = new Set();
+  entries.forEach(e => {
+    if (!seen.has(e.subject_id)) {
+      seen.add(e.subject_id);
+      const c = subjColorMap[e.subject_id] || 'ds';
+      const colors = { ds: '#4a9eff', os: '#3ecf6e', db: '#a78bfa', cn: '#f0c040', se: '#ff5a5a', ml: '#f97316', wt: '#ec4899' };
+      html += `<span style="display:flex;align-items:center;gap:6px;font-size:11px;color:var(--text2)">
+        <span style="width:10px;height:10px;border-radius:2px;background:${colors[c]};flex-shrink:0"></span>${e.subject_name}
+      </span>`;
+    }
+  });
+  html += '</div>';
+
+  document.getElementById('tt-container').innerHTML = html;
+}
+
+async function deleteEntry(id) {
+  if (!confirm('Remove this session?')) return;
+  await api('/timetable/entry/' + id, 'DELETE');
+  toast('Session removed');
+  loadTimetable();
+}
+
+function exportCSV(batchId) {
+  api('/timetable/' + batchId).then(res => {
+    if (!res || !res.entries) return;
+    const rows = [['Day','Start','End','Subject','Faculty','Room']];
+    res.entries.forEach(e => rows.push([e.day, e.start_time, e.end_time, e.subject_name, e.faculty_name, e.room_name]));
+    const csv = rows.map(r => r.join(',')).join('\n');
+    const a = document.createElement('a');
+    a.href = 'data:text/csv;charset=utf-8,' + encodeURIComponent(csv);
+    a.download = 'timetable.csv';
+    a.click();
+    toast('CSV exported!');
+  });
+}
+
+// ─── Departments ──────────────────────────────────────────────────────────────
+async function loadDepts() {
+  const [depts, batches] = await Promise.all([api('/departments'), api('/batches')]);
+  allData.departments = depts;
+  allData.batches = batches;
+  const tbody = document.getElementById('dept-table');
+  tbody.innerHTML = depts.map(d => {
+    const count = batches.filter(b => b.department_id === d.department_id).length;
+    return `<tr>
+      <td style="font-family:var(--mono);font-size:11px;color:var(--text3)">${d.department_id.slice(0,8)}</td>
+      <td style="color:var(--text);font-weight:500">${d.name}</td>
+      <td><span class="badge badge-blue">${count} batches</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteDept('${d.department_id}')">Delete</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">No departments</td></tr>';
+}
+
+async function addDept() {
+  const name = document.getElementById('dept-name').value.trim();
+  if (!name) return toast('Name required', 'error');
+  await api('/departments', 'POST', { name });
+  closeModal('dept-modal');
+  document.getElementById('dept-name').value = '';
+  toast('Department added');
+  loadDepts();
+}
+
+async function deleteDept(id) {
+  if (!confirm('Delete this department?')) return;
+  await api('/departments/' + id, 'DELETE');
+  toast('Deleted');
+  loadDepts();
+}
+
+// ─── Batches ──────────────────────────────────────────────────────────────────
+async function loadBatches() {
+  const [batches, depts, subjects] = await Promise.all([api('/batches'), api('/departments'), api('/subjects')]);
+  allData.batches = batches;
+  allData.departments = depts;
+  const tbody = document.getElementById('batch-table');
+  tbody.innerHTML = batches.map(b => {
+    const dept = depts.find(d => d.department_id === b.department_id);
+    const sc = subjects.filter(s => s.batch_id === b.batch_id).length;
+    return `<tr>
+      <td style="color:var(--text);font-weight:500">${b.name}</td>
+      <td><span class="badge badge-blue">Year ${b.year}</span></td>
+      <td>${dept ? dept.name : '—'}</td>
+      <td><span class="badge badge-purple">${sc} subjects</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteBatch('${b.batch_id}')">Delete</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">No batches</td></tr>';
+}
+
+async function openBatchModal() {
+  const depts = await api('/departments');
+  document.getElementById('batch-dept-sel').innerHTML = depts.map(d =>
+    `<option value="${d.department_id}">${d.name}</option>`).join('');
+  openModal('batch-modal');
+}
+
+async function addBatch() {
+  const name = document.getElementById('batch-name').value.trim();
+  const year = parseInt(document.getElementById('batch-year').value);
+  const department_id = document.getElementById('batch-dept-sel').value;
+  if (!name || !year || !department_id) return toast('All fields required', 'error');
+  await api('/batches', 'POST', { name, year, department_id });
+  closeModal('batch-modal');
+  toast('Batch added');
+  loadBatches();
+}
+
+async function deleteBatch(id) {
+  if (!confirm('Delete this batch?')) return;
+  await api('/batches/' + id, 'DELETE');
+  toast('Deleted');
+  loadBatches();
+}
+
+// ─── Subjects ─────────────────────────────────────────────────────────────────
+async function loadSubjectsPage() {
+  const batches = await api('/batches');
+  allData.batches = batches;
+  const sel = document.getElementById('subj-filter-batch');
+  sel.innerHTML = '<option value="">All batches</option>' + batches.map(b =>
+    `<option value="${b.batch_id}">${b.name}</option>`).join('');
+  loadSubjects();
+}
+
+async function loadSubjects() {
+  const batchId = document.getElementById('subj-filter-batch').value;
+  const [subjects, faculty] = await Promise.all([
+    api('/subjects' + (batchId ? '?batch_id=' + batchId : '')),
+    api('/faculty')
+  ]);
+  allData.subjects = subjects;
+  allData.faculty = faculty;
+  const batches = allData.batches.length ? allData.batches : await api('/batches');
+  const tbody = document.getElementById('subj-table');
+  tbody.innerHTML = subjects.map(s => {
+    const batch = batches.find(b => b.batch_id === s.batch_id);
+    const fac = faculty.find(f => f.faculty_id === s.faculty_id);
+    return `<tr>
+      <td style="color:var(--text);font-weight:500">${s.name}</td>
+      <td>${batch ? `<span class="badge badge-blue">${batch.name}</span>` : '—'}</td>
+      <td><span class="badge badge-yellow">${s.hours_per_week}h</span></td>
+      <td>${fac ? fac.name : '<span style="color:var(--red)">Unassigned</span>'}</td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteSubject('${s.subject_id}')">Delete</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="5" style="text-align:center;color:var(--text3);padding:24px">No subjects</td></tr>';
+}
+
+async function openSubjModal() {
+  const [batches, faculty] = await Promise.all([api('/batches'), api('/faculty')]);
+  document.getElementById('subj-batch-sel').innerHTML = batches.map(b =>
+    `<option value="${b.batch_id}">${b.name}</option>`).join('');
+  document.getElementById('subj-faculty-sel').innerHTML = faculty.map(f =>
+    `<option value="${f.faculty_id}">${f.name}</option>`).join('');
+  openModal('subj-modal');
+}
+
+async function addSubject() {
+  const name = document.getElementById('subj-name').value.trim();
+  const hours_per_week = parseInt(document.getElementById('subj-hrs').value);
+  const batch_id = document.getElementById('subj-batch-sel').value;
+  const faculty_id = document.getElementById('subj-faculty-sel').value;
+  if (!name || !hours_per_week || !batch_id) return toast('All fields required', 'error');
+  await api('/subjects', 'POST', { name, hours_per_week, batch_id, faculty_id });
+  closeModal('subj-modal');
+  toast('Subject added');
+  loadSubjects();
+}
+
+async function deleteSubject(id) {
+  if (!confirm('Delete this subject?')) return;
+  await api('/subjects/' + id, 'DELETE');
+  toast('Deleted');
+  loadSubjects();
+}
+
+// ─── Faculty ──────────────────────────────────────────────────────────────────
+async function loadFacultyPage() {
+  const [faculty, subjects] = await Promise.all([api('/faculty'), api('/subjects')]);
+  allData.faculty = faculty;
+  const tbody = document.getElementById('faculty-table');
+  tbody.innerHTML = faculty.map(f => {
+    const count = subjects.filter(s => s.faculty_id === f.faculty_id).length;
+    return `<tr>
+      <td style="color:var(--text);font-weight:500">${f.name}</td>
+      <td>${(f.availability || []).map(d => `<span class="badge badge-blue" style="margin:1px">${d}</span>`).join('')}</td>
+      <td><span class="badge badge-purple">${count} subjects</span></td>
+      <td><button class="btn btn-danger btn-sm" onclick="deleteFaculty('${f.faculty_id}')">Delete</button></td>
+    </tr>`;
+  }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text3);padding:24px">No faculty</td></tr>';
+}
+
+async function addFaculty() {
+  const name = document.getElementById('fac-name').value.trim();
+  if (!name) return toast('Name required', 'error');
+  const checks = document.querySelectorAll('#avail-checks input[type=checkbox]:checked');
+  const availability = Array.from(checks).map(c => c.value);
+  if (!availability.length) return toast('Select at least one day', 'error');
+  await api('/faculty', 'POST', { name, availability });
+  closeModal('faculty-modal');
+  document.getElementById('fac-name').value = '';
+  toast('Faculty added');
+  loadFacultyPage();
+}
+
+async function deleteFaculty(id) {
+  if (!confirm('Delete this faculty member?')) return;
+  await api('/faculty/' + id, 'DELETE');
+  toast('Deleted');
+  loadFacultyPage();
+}
+
+// ─── Rooms ────────────────────────────────────────────────────────────────────
+async function loadRoomsPage() {
+  const rooms = await api('/rooms');
+  allData.rooms = rooms;
+  const tbody = document.getElementById('room-table');
+  tbody.innerHTML = rooms.map(r => `<tr>
+    <td style="color:var(--text);font-weight:500">${r.name}</td>
+    <td><span class="badge badge-blue">${r.capacity} seats</span></td>
+    <td><button class="btn btn-danger btn-sm" onclick="deleteRoom('${r.room_id}')">Delete</button></td>
+  </tr>`).join('') || '<tr><td colspan="3" style="text-align:center;color:var(--text3);padding:24px">No rooms</td></tr>';
+}
+
+async function addRoom() {
+  const name = document.getElementById('room-name').value.trim();
+  const capacity = parseInt(document.getElementById('room-cap').value);
+  if (!name || !capacity) return toast('All fields required', 'error');
+  await api('/rooms', 'POST', { name, capacity });
+  closeModal('room-modal');
+  toast('Room added');
+  loadRoomsPage();
+}
+
+async function deleteRoom(id) {
+  if (!confirm('Delete this room?')) return;
+  await api('/rooms/' + id, 'DELETE');
+  toast('Deleted');
+  loadRoomsPage();
+}
+
+// ─── Modal helpers ────────────────────────────────────────────────────────────
+function openModal(id) {
+  if (id === 'batch-modal') openBatchModal(); 
+  else if (id === 'subj-modal') openSubjModal();
+  else document.getElementById(id).classList.add('open');
+}
+function closeModal(id) { document.getElementById(id).classList.remove('open'); }
+document.querySelectorAll('.modal-overlay').forEach(m => {
+  m.addEventListener('click', e => { if (e.target === m) m.classList.remove('open'); });
+});
+// Fix: openBatchModal/openSubjModal open the modal after populating
+async function openBatchModal2() {
+  const depts = await api('/departments');
+  document.getElementById('batch-dept-sel').innerHTML = depts.map(d =>
+    `<option value="${d.department_id}">${d.name}</option>`).join('');
+  document.getElementById('batch-modal').classList.add('open');
+}
+async function openSubjModal2() {
+  const [batches, faculty] = await Promise.all([api('/batches'), api('/faculty')]);
+  document.getElementById('subj-batch-sel').innerHTML = batches.map(b =>
+    `<option value="${b.batch_id}">${b.name}</option>`).join('');
+  document.getElementById('subj-faculty-sel').innerHTML = faculty.map(f =>
+    `<option value="${f.faculty_id}">${f.name}</option>`).join('');
+  document.getElementById('subj-modal').classList.add('open');
+}
+// Override the generic openModal for these two
+const origOpenModal = openModal;
+function openModal(id) {
+  if (id === 'batch-modal') { openBatchModal2(); return; }
+  if (id === 'subj-modal') { openSubjModal2(); return; }
+  document.getElementById(id).classList.add('open');
+}
+
+// ─── Boot ─────────────────────────────────────────────────────────────────────
+loadDashboard();
+</script>
+</body>
+</html>
